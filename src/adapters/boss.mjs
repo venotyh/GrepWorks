@@ -65,10 +65,17 @@ export async function searchBoss(keyword, afterDate, location, session = 'boss')
 
   process.stdout.write(`  [boss] ${searchUrl} `);
 
-  // Ensure the browser is on zhipin.com (needed for same-origin fetch)
-  const currentUrl = await runOpencli(['browser', session, 'get', 'url']).catch(() => '');
-  if (!currentUrl.includes('zhipin.com')) {
-    await runOpencli(['browser', session, 'open', 'https://www.zhipin.com']);
+  // Ensure the browser is on zhipin.com (needed for same-origin fetch).
+  // If the session has a stale tab reference, fall back to opening a new tab.
+  try {
+    const currentUrl = await runOpencli(['browser', session, 'get', 'url']);
+    if (!currentUrl.includes('zhipin.com')) {
+      await runOpencli(['browser', session, 'open', 'https://www.zhipin.com']);
+      await runOpencli(['browser', session, 'wait', 'time', '5']);
+    }
+  } catch {
+    // Stale or missing session — open a fresh tab
+    await runOpencli(['browser', session, 'tab', 'new', 'https://www.zhipin.com']);
     await runOpencli(['browser', session, 'wait', 'time', '5']);
   }
 

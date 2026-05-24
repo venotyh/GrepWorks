@@ -1,0 +1,17 @@
+# 复制此文件为 task.yml 并填写配置（task.yml 已 gitignore，不会上传）
+
+search:
+  keywords: ["agent开发", "AI Agent", "LLM工程师", "大模型应用"]  # 搜索关键词，多个关键词逐一搜索
+  platforms: ["liepin"]                                             # 已实现：liepin；其余待开发
+  after_date: "2026-05-20"                                          # 只保留此日期之后发布的岗位（需详情页抓取才生效）
+  location: "上海"                                                   # 城市筛选，adapter 侧 + filter 双重过滤
+
+filter:
+  min_salary_k: 30                          # 薪资下限（K），低于此值跳过；0 表示不过滤
+  exclude_keywords: ["外包", "实习"]         # 标题或描述含这些词的岗位跳过
+
+cv_path: ./cv.md    # 简历路径，评估时读取；文件不存在时跳过评估，只输出原始岗位数据
+
+output:
+  format: ["md", "json"]       # 输出格式
+  dir: ./evaluation_results    # 输出目录

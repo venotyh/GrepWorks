@@ -1,5 +1,8 @@
 node_modules/
-output/
-data/seen.tsv
+evaluation_results/
+search_results/seen.tsv
+search_results/pending.json
 cv.md
 *.local
+plan.md
+task.yml

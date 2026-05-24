@@ -11,28 +11,27 @@
 ## 架构
 
 ```
+gwks scan
+  ↓
 [OpenCLI Browser Bridge]
-  opencli liepin search "agent开发" --after 2026-05-20
-  opencli zhilian search "agent开发" --after 2026-05-20
-  opencli51job search "agent开发" --after 2026-05-20
-  opencli maimai search "agent开发" --after 2026-05-20
-  opencli indeed-cn search "agent开发" --after 2026-05-20
-  opencli linkedin search "agent engineer" --after 2026-05-20
+  browser adapter 打开搜索页 → 点城市筛选 → 提取搜索结果卡片
+  字段：title / company / salary / location / url
         ↓
-  岗位列表（title / url / company / published_at）
+[过滤层 filter.mjs]
+  - 关键词命中（title）
+  - 地点过滤
+  - 薪资下限
+  - URL 去重（seen.tsv 跨次 + 本次内去重）
         ↓
-[过滤层]
-  - 发布时间 >= 目标日期
-  - 关键词命中（title / JD摘要）
-  - 去重（url）
+  写入 search_results/pending.json
         ↓
-[JD 抓取]
-  opencli browser <session> get <url>  → 完整JD文本
-        ↓
-[评估引擎]  ← 参考 career-ops Block A–G 框架
+AI 读取 EVALUATE_JOBS.md 规范，在当前 session 内执行
+  读取 pending.json + cv.md
+  Block A–G 逐岗评估
         ↓
 [输出层]
-  Markdown 表格 / JSON / CSV
+  evaluation_results/evaluation-{timestamp}.md + .json
+  清空 pending.json
 ```
 
 ---
@@ -41,12 +40,12 @@
 
 | 层 | 技术 |
 |----|------|
-| CLI 入口 | `gwks` 命令（npm 全局安装：`npm install -g grepworks`） |
+| CLI 入口 | `gwks` 命令（`npm install -g .`） |
 | 浏览器控制 | OpenCLI + Browser Bridge Chrome 扩展 |
-| 爬虫适配器 | `opencli-adapter-author` skill 生成猎聘 adapter |
-| 评估引擎 | Claude API（claude-sonnet-4-6） |
+| 爬虫适配器 | `src/adapters/*.mjs`，browser-based |
+| 评估引擎 | `EVALUATE_JOBS.md` 规范，AI 读取后按 Block A–G 框架执行，无需独立 API Key |
 | 脚本语言 | Node.js (ESM .mjs) |
-| 数据存储 | Markdown 表格 + JSON（本地文件） |
+| 数据存储 | `search_results/`（中间数据）+ `evaluation_results/`（最终结果） |
 | 运行方式 | 手动触发，本地运行，Chrome 保持登录 |
 
 **CLI 用法示例：**
@@ -78,8 +77,10 @@ gwks results                       # 查看最近一次输出
 - `adapters/liepin.mjs`：`searchLiepin(keyword, afterDate, location, session)`
 - 打开搜索页 → 点城市筛选（`b64eval` + `li.click()`）→ `browser eval` 提取 card 数据
 - 字段：`title / company / salary / location / url / platform`
-- `published_at` 不在搜索 card 里，暂为 null（详情页才有）
+- `published_at` 不在搜索 card 里，暂为 null（详情页才有）⚠️ 导致 after_date 过滤失效
+- `jd_text` 不在搜索 card 里，暂为 null（详情页才有）⚠️ 评估引擎只能基于 title/salary/location，建议质量有限
 - 城市筛选在猎聘侧生效，`filter.mjs` 同时做 location 后过滤兜底
+- **下一步**：`fetchLiepinDetail(url)` 进入详情页抓取 JD 全文 + published_at，在 scan 写 pending.json 前批量富化
 
 **输出 schema：**
 ```json
@@ -124,7 +125,7 @@ gwks results                       # 查看最近一次输出
 | E | **简历修改建议**（针对此岗位需要调整哪些） |
 | G | 招聘真实性（幽灵岗检测） |
 
-**每岗位 Claude API 调用一次**，prompt 包含：用户简历 + JD全文 + 评估指令。
+**实现方式：Claude Code skill `/evaluate-jobs`**，在当前 session 内执行，无需独立 API Key。prompt 包含：用户简历 + JD全文 + 评估指令。
 
 **输出 schema（machine-readable YAML）：**
 ```yaml
@@ -146,17 +147,17 @@ final_decision: apply
 
 ### 4. 输出层
 
-文件：`output/results-{date}.md`
+文件：`evaluation_results/evaluation-{timestamp}.md`（timestamp 格式：`YYYY-MM-DDTHH-MM-SS`）
 
 ```markdown
-# 岗位扫描结果 — 2026-05-24
+# 2026-05-24 15:30:00
 
 | # | 公司 | 岗位 | 评分 | 匹配摘要 | 简历建议 | 真实性 | URL |
 |---|------|------|------|---------|---------|--------|-----|
 | 1 | xxx  | AI Agent工程师 | 4.2 | 技术栈匹配 | 突出多智能体经验 | ✅ | [...] |
 ```
 
-同时输出 `output/results-{date}.json` 供后续分析。
+同时输出 `evaluation_results/evaluation-{timestamp}.json` 供后续分析。
 
 ---
 
@@ -164,24 +165,26 @@ final_decision: apply
 
 ```
 grepworks/
-├── src/                         # 全部源代码
+├── src/
 │   ├── adapters/
-│   │   └── liepin.mjs           # 猎聘 browser adapter（b64eval + 城市筛选）
-│   ├── cli.mjs                  # gwks 命令入口（commander）
-│   ├── scan.mjs                 # 主流程：adapter → 过滤 → 评估 → 输出
-│   ├── filter.mjs               # 过滤逻辑（时间 / 关键词 / 地点 / 去重）
-│   ├── evaluate.mjs             # Claude API 评估引擎（prompt cache CV）
-│   └── render.mjs               # 输出 Markdown + JSON
+│   │   └── liepin.mjs                      # 猎聘 browser adapter（b64eval + 城市筛选）
+│   ├── cli.mjs                             # gwks 命令入口（commander）
+│   ├── scan.mjs                            # 抓取主流程：adapter → 过滤 → pending.json
+│   ├── filter.mjs                          # 过滤逻辑（关键词 / 地点 / 薪资 / 去重）
+│   └── render.mjs                          # 输出渲染
+├── .agents/skills/evaluate-jobs/
+│   └── evaluate-jobs-skill.md              # /evaluate-jobs Claude Code skill
 ├── tests/
-│   └── eval.mjs                 # filter + evaluate 端到端测试脚本
-├── data/
-│   └── seen.tsv                 # 去重记录（运行时生成）
-├── output/
-│   └── results-{date}.md        # 扫描结果（运行时生成）
-├── task.yml                   # 用户配置（关键词 / 日期 / 平台 / 地点 / 简历路径）
-├── cv.md                        # 用户简历（待填写）
-├── plan.md                      # 项目构建计划（本文件）
-└── README.md                    # 快速上手文档
+│   └── eval.mjs                            # filter 单元测试
+├── search_results/
+│   ├── pending.json                        # 待评估岗位（scan 写，evaluate-jobs 清）
+│   └── seen.tsv                            # 去重记录
+├── evaluation_results/
+│   └── evaluation-{timestamp}.md/.json    # 评估结果
+├── task.yml                                # 用户配置（关键词 / 日期 / 平台 / 地点）
+├── cv.md                                   # 用户简历（gitignored）
+├── plan.md                                 # 本文件
+└── README.md                               # 快速上手
 ```
 
 ## 技术发现（开发过程中积累）
@@ -253,10 +256,19 @@ output:
   - stderr 过滤：剔除 `(node:` 开头的 Node.js 运行时警告，只保留真正的 opencli 错误
   - 验证：苏州筛选在猎聘侧生效，"大模型应用"关键词在苏州找到 42 条结果，最终过滤出 17 个新岗位
 - [x] `filter.mjs` 去重逻辑验证：seen.tsv 正常写入，重复 URL 被过滤
-- [ ] 用一个岗位测试 Claude API 评估调用，验证输出 schema（需先填 `cv.md`）
+- [x] `evaluate.mjs`（Claude API 方案）替换为 `/evaluate-jobs` Claude Code skill，`scan.mjs` 已对接（写 pending.json，提示用户执行 skill）
+- [x] 完整流程端到端验证：猎聘扫描 134 条 → 过滤 5 条 → `/evaluate-jobs` 输出 md/json；`jd_text: null` 限制评估深度，详情页抓取列入下阶段
+
+### Phase 1.5 — 详情页富化（猎聘，~1天）
+
+> 当前 `jd_text` 和 `published_at` 均为 null，评估质量受限、after_date 过滤失效。本阶段解决这两个问题。
+
+- [ ] `adapters/liepin.mjs` 新增 `fetchLiepinDetail(url)`：用 `b64eval` 进入详情页，提取 JD 全文（`div.job-desc` 或等价选择器）和发布时间
+- [ ] `scan.mjs` 在过滤前批量调用 `fetchDetail`，节流 2–4s/条，富化 `jd_text` 和 `published_at` 字段
+- [ ] `filter.mjs` 验证 `published_at` 过滤生效（当前因字段为 null 跳过该规则）
+- [ ] 验证：`pending.json` 中 `jd_text` 不为 null，`/evaluate-jobs` 给出基于 JD 正文的具体建议
 
 ### Phase 2 — 平台 adapter（3-4天，可并行）
-- [ ] 猎聘：`opencli-adapter-author` 生成 `liepin/search` adapter
 - [ ] 智联招聘：`zhilian/search` adapter
 - [ ] 前程无忧：`51job/search` adapter
 - [ ] 脉脉：`maimai/search` adapter（职言舆情可选）

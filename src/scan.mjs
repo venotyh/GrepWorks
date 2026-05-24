@@ -1,9 +1,7 @@
-import { readFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { spawn } from 'child_process';
 import yaml from 'js-yaml';
 import { filterJobs } from './filter.mjs';
-import { evaluateJob } from './evaluate.mjs';
-import { renderResults } from './render.mjs';
 import { searchLiepin } from './adapters/liepin.mjs';
 
 const ADAPTERS = {
@@ -56,18 +54,9 @@ async function searchPlatform(platform, keyword, afterDate, location) {
 
 export async function scan(opts = {}) {
   const cfg = await loadConfig(opts);
-  let cv = null;
-  if (cfg.cv_path) {
-    try {
-      cv = await readFile(cfg.cv_path, 'utf8');
-    } catch {
-      console.warn(`[warn] cv file "${cfg.cv_path}" not found — running without evaluation`);
-    }
-  }
-  if (!cv) console.log('[mode] no-CV: scan & filter only, skipping evaluation');
 
-  await mkdir('./output', { recursive: true });
-  await mkdir('./data', { recursive: true });
+  await mkdir('./evaluation_results', { recursive: true });
+  await mkdir('./search_results', { recursive: true });
 
   const raw = [];
   let first = true;
@@ -88,7 +77,7 @@ export async function scan(opts = {}) {
   console.log(`[scan] ${raw.length} total before filter`);
 
   const jobs = await filterJobs(raw, cfg);
-  console.log(`[filter] ${jobs.length} new jobs to evaluate`);
+  console.log(`[filter] ${jobs.length} new jobs`);
 
   if (!jobs.length) { console.log('Nothing new.'); return; }
 
@@ -97,22 +86,7 @@ export async function scan(opts = {}) {
     return;
   }
 
-  const results = [];
-  for (const [i, job] of jobs.entries()) {
-    console.log(`[eval ${i + 1}/${jobs.length}] ${job.company} — ${job.title}`);
-    if (cv) {
-      try {
-        const evaluation = await evaluateJob(job, cv);
-        results.push({ ...job, ...evaluation });
-      } catch (e) {
-        console.warn(`  eval failed: ${e.message}`);
-        results.push({ ...job, score: null, match_summary: 'eval failed' });
-      }
-    } else {
-      results.push({ ...job });
-    }
-  }
-
-  await renderResults(results, cfg);
-  console.log(`[done] ${results.length} jobs evaluated.`);
+  await writeFile('./search_results/pending.json', JSON.stringify(jobs, null, 2), 'utf8');
+  console.log(`[done] ${jobs.length} jobs saved → search_results/pending.json`);
+  console.log('[next] Run /evaluate-jobs in Claude Code to evaluate and render results.');
 }

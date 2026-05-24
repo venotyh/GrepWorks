@@ -1,7 +1,7 @@
 import { readFile, appendFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 
-const SEEN_PATH = './data/seen.tsv';
+const SEEN_PATH = './search_results/seen.tsv';
 
 async function loadSeen() {
   if (!existsSync(SEEN_PATH)) return new Set();

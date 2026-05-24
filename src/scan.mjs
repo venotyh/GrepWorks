@@ -3,9 +3,11 @@ import { spawn } from 'child_process';
 import yaml from 'js-yaml';
 import { filterJobs } from './filter.mjs';
 import { searchLiepin } from './adapters/liepin.mjs';
+import { searchBoss } from './adapters/boss.mjs';
 
 const ADAPTERS = {
   liepin: (keyword, afterDate, location) => searchLiepin(keyword, afterDate, location),
+  boss:   (keyword, afterDate, location) => searchBoss(keyword, afterDate, location),
 };
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));

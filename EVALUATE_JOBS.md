@@ -7,12 +7,11 @@
 1. 读取 `search_results/pending.json` — `gwks scan` 写入的待评估岗位列表
 2. 读取 `cv.md` — 候选人简历
 3. 若 `pending.json` 为空或不存在，告知用户先运行 `gwks scan`，停止
-4. 按下方框架逐岗评估
-5. 写入 `evaluation_results/evaluation-{timestamp}.json` — 完整评估数组
-6. 写入 `evaluation_results/evaluation-{timestamp}.md` — Markdown 表格
-7. 将 `search_results/pending.json` 写为 `[]`，防止重复处理
-
-timestamp 格式：`YYYY-MM-DDTHH-MM-SS`（冒号改短横线，Windows 文件名安全）。
+4. 确定输出文件名：列出 `evaluation_results/` 下所有匹配 `evaluation-{today}-*.md` 的文件，取最大序号 +1；若无匹配文件则序号为 1。文件名格式：`evaluation-YYYY-MM-DD-{N}`（N 为两位数字，如 `01`）
+5. 按下方框架逐岗评估
+6. 写入 `evaluation_results/evaluation-{today}-{N}.json` — 完整评估数组
+7. 写入 `evaluation_results/evaluation-{today}-{N}.md` — Markdown 表格
+8. 将 `search_results/pending.json` 写为 `[]`，防止重复处理
 
 ---
 
@@ -66,11 +65,11 @@ posted_range 与苏州市场水位对比（below / at / above market）。
 
 ## 输出格式
 
-文件：`evaluation_results/evaluation-{timestamp}.md` 和 `.json`
-表头时间戳格式：`YYYY-MM-DD HH:MM:SS`
+文件：`evaluation_results/evaluation-{today}-{N}.md` 和 `.json`
+表头日期格式：`YYYY-MM-DD`，序号 `#N`
 
 ```markdown
-# 2026-05-24 15:30:00
+# 2026-05-25 #1
 
 | # | 公司 | 岗位 | 评分 | 匹配摘要 | 简历建议 | 真实性 | URL |
 |---|------|------|------|---------|---------|--------|-----|

@@ -30,7 +30,7 @@ AI 读取 EVALUATE_JOBS.md 规范，在当前 session 内执行
   Block A–G 逐岗评估
         ↓
 [输出层]
-  evaluation_results/evaluation-{timestamp}.md + .json
+  evaluation_results/evaluation-{date}-{N}.md + .json
   清空 pending.json
 ```
 
@@ -147,17 +147,17 @@ final_decision: apply
 
 ### 4. 输出层
 
-文件：`evaluation_results/evaluation-{timestamp}.md`（timestamp 格式：`YYYY-MM-DDTHH-MM-SS`）
+文件：`evaluation_results/evaluation-{date}-{N}.md`（date=当天日期，N=当日序号两位数字）
 
 ```markdown
-# 2026-05-24 15:30:00
+# 2026-05-25 #1
 
 | # | 公司 | 岗位 | 评分 | 匹配摘要 | 简历建议 | 真实性 | URL |
 |---|------|------|------|---------|---------|--------|-----|
 | 1 | xxx  | AI Agent工程师 | 4.2 | 技术栈匹配 | 突出多智能体经验 | ✅ | [...] |
 ```
 
-同时输出 `evaluation_results/evaluation-{timestamp}.json` 供后续分析。
+同时输出 `evaluation_results/evaluation-{date}-{N}.json` 供后续分析。
 
 ---
 
@@ -180,7 +180,7 @@ grepworks/
 │   ├── pending.json                        # 待评估岗位（scan 写，evaluate-jobs 清）
 │   └── seen.tsv                            # 去重记录
 ├── evaluation_results/
-│   └── evaluation-{timestamp}.md/.json    # 评估结果
+│   └── evaluation-{date}-{N}.md/.json     # 评估结果（同一天多次序号递增）
 ├── task.yml                                # 用户配置（关键词 / 日期 / 平台 / 地点）
 ├── cv.md                                   # 用户简历（gitignored）
 ├── plan.md                                 # 本文件

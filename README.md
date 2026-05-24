@@ -36,7 +36,7 @@ gwks scan --platform liepin
 按照 EVALUATE_JOBS.md 的规范评估 pending.json 里的岗位
 ```
 
-评估结果输出到 `evaluation_results/evaluation-{timestamp}.md` 和 `.json`。
+评估结果输出到 `evaluation_results/evaluation-{date}-{N}.md` 和 `.json`（同一天多次运行序号递增）。
 
 > **评估规范**见 [`EVALUATE_JOBS.md`](EVALUATE_JOBS.md)。AI 读取该文件后按 Block A–G 框架逐岗分析，输出带简历建议的 Markdown 表格。
 
@@ -84,10 +84,10 @@ output:
 
 ## 输出格式
 
-`evaluation_results/evaluation-2026-05-24T10-10-37.md`：
+`evaluation_results/evaluation-2026-05-25-01.md`：
 
 ```
-# 2026-05-24 10:10:37
+# 2026-05-25 #1
 
 | # | 公司 | 岗位 | 评分 | 匹配摘要 | 简历建议 | 真实性 | URL |
 |---|------|------|------|---------|---------|--------|-----|

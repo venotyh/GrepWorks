@@ -1,0 +1,15 @@
+search:
+  keywords: ["agent开发", "AI Agent", "LLM工程师", "大模型应用"]
+  platforms: ["liepin"]
+  after_date: "2026-05-21"
+  location: "苏州"
+
+filter:
+  min_salary_k: 25
+  exclude_keywords: ["外包", "实习"]
+
+cv_path: ./cv.md
+
+output:
+  format: ["md", "json"]
+  dir: ./output

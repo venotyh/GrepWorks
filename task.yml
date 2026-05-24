@@ -1,0 +1,15 @@
+search:
+  keywords: ["agent开发", "AI Agent", "LLM工程师", "大模型应用"]
+  platforms: ["liepin", "zhilian", "51job", "maimai", "indeed-cn", "linkedin"]
+  after_date: "2026-05-21"
+  location: "苏州"
+
+filter:
+  min_salary_k: 25
+  exclude_keywords: ["外包", "实习"]
+
+cv_path: ./cv.md    # 可选——省略或文件不存在时以无简历模式运行（只扫描过滤，跳过 Claude 评估）
+
+output:
+  format: ["md", "json"]
+  dir: ./output

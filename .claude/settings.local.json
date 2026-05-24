@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(opencli browser *)",
+      "Bash(Get-ChildItem D:\\\\workspace\\\\GrepWorks -Exclude node_modules)",
+      "Bash(Select-Object Name, Mode, LastWriteTime)"
+    ]
+  }
+}

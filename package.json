@@ -1,0 +1,26 @@
+{
+  "name": "grepworks",
+  "version": "0.1.0",
+  "description": "AI-powered job search automation for Chinese job platforms",
+  "main": "src/scan.mjs",
+  "bin": {
+    "gwks": "./src/cli.mjs"
+  },
+  "scripts": {
+    "scan": "node src/scan.mjs",
+    "test": "node tests/eval.mjs"
+  },
+  "keywords": [
+    "job-search",
+    "automation",
+    "ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "commander": "^14.0.3",
+    "js-yaml": "^4.1.1"
+  }
+}

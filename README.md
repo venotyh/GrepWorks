@@ -1,5 +1,5 @@
 # GrepWorks
-
+## WARNING: This project is not production ready.
 招聘平台自动扫描工具。浏览器爬取猎聘岗位 → 关键词过滤去重 → Claude Code 内联评估 → 输出带简历建议的 Markdown 表格。
 
 ## 依赖

@@ -5,8 +5,8 @@
 ## 依赖
 
 - Node.js 18+
-- [OpenCLI](https://github.com/jackwener/opencli) + Browser Bridge Chrome 扩展
-- Chrome 保持登录状态（猎聘等平台）
+- [OpenCLI fork (feat/no-debugger-eval)](https://github.com/BruceLoveDecimal/opencli/tree/feat/no-debugger-eval) + Browser Bridge Chrome 扩展（需从 fork 手动 build + 加载 unpacked）
+- Chrome 保持登录状态（猎聘、BOSS直聘等平台）
 - Claude Code（评估在 session 内完成，不需要单独 API Key）
 
 ## 安装
@@ -116,6 +116,7 @@ gwks results                       # 显示最近一次评估结果
 ```
 src/
 ├── adapters/liepin.mjs              # 猎聘浏览器 adapter（b64eval + 城市筛选）
+├── adapters/boss.mjs                # BOSS直聘 adapter（--via-extension + Vue state 读取）
 ├── cli.mjs                          # gwks 命令入口
 ├── scan.mjs                         # 抓取主流程
 ├── filter.mjs                       # 过滤 + 去重
@@ -135,13 +136,25 @@ evaluation_results/
 
 ## 平台支持
 
-| 平台 | 状态 |
-|------|------|
-| 猎聘 | ✅ 完成 |
-| BOSS 直聘 | 开发中 |
-| 智联招聘 | 待实现 |
-| 前程无忧 51job | 待实现 |
-| 脉脉 | 待实现 |
-| LinkedIn | 待实现 |
+| 平台 | 状态 | 备注 |
+|------|------|------|
+| 猎聘 | ✅ 完成 | 全自动 |
+| BOSS 直聘 | ✅ 完成 | 半自动：需手动导航到搜索页，adapter 读 Vue state |
+| 智联招聘 | 待实现 | |
+| 前程无忧 51job | 待实现 | |
+| 脉脉 | 待实现 | |
+| LinkedIn | 待实现 | |
+
+**BOSS 直聘使用方式：**
+
+BOSS 检测 `chrome.debugger.attach()`（CDP），触发后立即将 tab 重定向到 `about:blank`。绕过方式：使用 opencli fork 的 `--via-extension` flag，改走 `chrome.scripting.executeScript()` 执行 JS，对页面级反爬不可见。
+
+程序化导航仍会触发反爬，需用户手动打开搜索页：
+
+```bash
+# 先在 Chrome 手动打开 BOSS 搜索结果页并等待加载，再运行：
+gwks scan --platform boss --keyword "AI Agent" --location 苏州
+# 已在搜索页时自动提取；否则会提示手动导航后按 Enter
+```
 
 详见 [plan.md](plan.md)。

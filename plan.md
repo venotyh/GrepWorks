@@ -67,6 +67,7 @@ gwks results                       # 查看最近一次输出
 | 平台 | adapter 状态 | 备注 |
 |------|-------------|------|
 | 猎聘 | ✅ 完成 | `adapters/liepin.mjs`，browser-based |
+| BOSS直聘 | ✅ 完成 | `adapters/boss.mjs`，`--via-extension` 绕过反爬，半自动（需手动导航） |
 | 智联招聘 | 待写 | |
 | 前程无忧 51job | 待写 | |
 | 脉脉 | 待写 | 职言区也可抓公司舆情 |
@@ -203,6 +204,56 @@ grepworks/
 - opencli 自身会输出 `(node:XXXX) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental` 到 stderr，即使命令成功
 - 若 opencli 以非零退出，警告和真正的错误混在一起，错误信息被淹没
 - **解法**：过滤 stderr 中以 `(node:` 开头的行，只保留真正的 opencli 错误内容
+
+### BOSS直聘反爬机制（截至 2026-05-25）
+
+**核心机制：**
+1. **session 过期重定向**：opencli 的 `browser boss open <url>` 在 tab 被关闭或 session 失效后返回 `stale page identity` 错误，需用 `browser boss tab new` 重建
+2. **首次导航成功，二次导航即封**：第一次用 `tab new` 打开 zhipin.com 可以成功加载；之后再次 `open` 同一 tab，BOSS 的反爬 JS 会在页面加载后 1–2s 内将 tab 重定向到 `about:blank`
+3. **搜索 API 软屏蔽**：`/wapi/zpgeek/search/joblist.json` 对自动化请求返回 `{"code":0,"message":"Success","zpData":{"jobList":[]}}` ——带 `Zp_token`（`bst` cookie）时依然如此，是故意返回空列表而非报错
+4. **BOSS 检测 Browser Bridge 扩展**：opencli 的 Browser Bridge 扩展的存在本身被 BOSS 检测到，触发"加载后延迟重定向"策略；人工在同一 Chrome 手动搜索完全正常
+
+**boss-helper 的绕过方式（参考 `D:\workspace\boss-helper`）：**
+- 以 Chrome Extension content script 形式注入（在 `document_start` 阶段运行，早于 BOSS 反爬 JS）
+- **不发起搜索 API 调用**，而是直接 hook Vue 3 的 reactive data（`el.__vueParentComponent.setupState.jobList`）读取页面已渲染的搜索结果
+- 因此完全规避了 API 层的软屏蔽和页面层的导航检测
+- 需要 `bst` cookie 作 `Zp_token` 用于详情/投递 API
+
+**根因定位（2026-05-25）**
+
+通过阅读 boss-helper 源码 + 实测确认：
+
+- BOSS 使用 **Vue 2**（`el.__vue__`），非 Vue 3（`__vueParentComponent`）
+- 正确提取路径：`document.querySelector('.job-recommend-main, .page-jobs-main, #wrap .page-job-wrapper').__vue__.jobList`
+- boss-helper 在 `window.__q_jobList` 暴露了完整 JobList 实例
+- **检测真正触发点**：`opencli browser boss bind` 内部调用 `chrome.debugger.attach()`，这一刻 BOSS 立即将 tab 重定向到 `about:blank`；不是 Browser Bridge 扩展的存在本身，而是 debugger 附加动作
+- 用户手动浏览（不触发 debugger attach）完全正常；`bind` 之后立刻 eval 也读到 `about:blank`
+
+**已排除的方案：**
+- API 调用（`/wapi/zpgeek/search/joblist.json`）→ `code:37`，完全封锁
+- 被动 Vue eval（先 bind 再 eval）→ bind 本身触发 debugger attach，tab 被立即重定向
+- `tab new` 程序化导航 → 同上，重定向
+
+**已解决（2026-05-28）：**
+
+opencli 官方仓库 [issue #1757](https://github.com/jackwener/OpenCLI/issues/1757) 中，BruceLoveDecimal 在 fork 分支 `feat/no-debugger-eval` 实现了 `--via-extension` flag：
+
+- Extension 新增 `scripting` 权限，`background.js` 实现 `evaluateViaScripting()`
+- 用 `chrome.scripting.executeScript({ world: 'MAIN' })` 替代 `chrome.debugger.attach()` + CDP
+- 页面级反爬代码不可见此路径，完全绕过检测
+
+**追加发现（同日）：**
+- `browser <session> get url` 也走 CDP，会触发反爬重定向；改用 `tab list`（tabs API，无 CDP）读取当前 URL
+- session 默认值须与 opencli 实际 connected profile 一致（`work`），否则 opencli 会为 `boss` session 新建空白 tab，eval 目标变成 `about:blank`
+
+**安装 fork 版 opencli：**
+```bash
+git clone -b feat/no-debugger-eval https://github.com/BruceLoveDecimal/opencli D:\workspace\opencli
+cd D:\workspace\opencli && npm run build && npm install -g .
+# extension/dist/ 需手动 vite build + 拷贝静态文件后加载为 unpacked extension
+```
+
+验证结果：`gwks scan --platform boss --dry-run` 成功抓取 15 jobs (src:vue)，未触发反爬。
 
 ### 猎聘 DOM 结构（截至 2026-05-24）
 - 搜索结果 card wrapper：`div._40108yn42Q`
